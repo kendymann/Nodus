@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "LexiGraph",
+  "name": "Nodus",
   "version": "1.0.0",
   "description": "Transform dense articles into interactive knowledge graphs",
   "permissions": [

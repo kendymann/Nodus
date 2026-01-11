@@ -25,6 +25,8 @@ export function App() {
     } else {
       setGraphData(null);
     }
+    setSelectedNode(null);
+    setSelectedLink(null);
   }, [storedGraph, currentUrl]);
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export function App() {
         <div className="text-center max-w-md">
           <Sparkles className="w-12 h-12 text-zinc-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2 font-sans">
-            Welcome to LexiGraph
+            Welcome to Nodus
           </h2>
           <p className="text-zinc-400 text-sm mb-6 font-sans">
             Transform this article into an interactive knowledge graph. Click the button below to extract and visualize the concepts.

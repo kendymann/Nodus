@@ -38,7 +38,7 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Available Gemini models for graph generation
 const AVAILABLE_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-let PREFERRED_MODEL_INDEX = 0; // Default to first model; can be updated via future user selection
+let PREFERRED_MODEL_INDEX = 1; // Default to first model; can be updated via future user selection
 /*
 function setPreferredModel(modelName: string): void {
   const index = AVAILABLE_MODELS.indexOf(modelName);
@@ -85,7 +85,6 @@ async function generateGraph(articleText: string): Promise<GraphData> {
 
   const generationStarted = Date.now();
   const fullPrompt = GEMINI_PROMPT + articleText.substring(0, 100000);
-
   const preferredModel = AVAILABLE_MODELS[PREFERRED_MODEL_INDEX];
 
   if (!preferredModel) {

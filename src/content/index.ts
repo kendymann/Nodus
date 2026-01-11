@@ -13,12 +13,11 @@ function extractArticleText(): string | null {
     const article = reader.parse();
 
 
-    
+    // If Readability fails, fall back to basic extraction
     if (article && article.textContent) {
       return article.textContent.trim();
     }
-
-    // Fallback: try to get text from main content areas
+    
     const mainContent = document.querySelector('main, article, [role="main"]');
     if (mainContent) {
       return mainContent.textContent?.trim() || null;
@@ -28,7 +27,9 @@ function extractArticleText(): string | null {
     const scripts = bodyClone.querySelectorAll('script, style, noscript');
     scripts.forEach(el => el.remove());
     return bodyClone.textContent?.trim() || null;
+
   } catch (error) {
+    // If Readability throws an error, fall back to basic extraction
     console.error('Readability extraction error:', error);
     const bodyClone = document.body.cloneNode(true) as HTMLElement;
     const scripts = bodyClone.querySelectorAll('script, style, noscript');

@@ -13,23 +13,24 @@ export function useCurrentTab() {
 
     getCurrentTab();
 
-    const listener = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
+    const onActivated = async () => {
+      await getCurrentTab();
+    };
+
+    const onUpdated = (_tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => {
       if (changeInfo.url) {
         setUrl(changeInfo.url);
       }
     };
 
-    chrome.tabs.onActivated.addListener(async () => {
-      await getCurrentTab();
-    });
-
-    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onActivated.addListener(onActivated);
+    chrome.tabs.onUpdated.addListener(onUpdated);
 
     return () => {
-      chrome.tabs.onUpdated.removeListener(listener);
+      chrome.tabs.onActivated.removeListener(onActivated);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
     };
   }, []);
 
   return url;
 }
-
