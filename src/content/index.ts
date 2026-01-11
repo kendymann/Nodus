@@ -12,10 +12,13 @@ function extractArticleText(): string | null {
     
     const article = reader.parse();
 
+
+    
     if (article && article.textContent) {
       return article.textContent.trim();
     }
 
+    // Fallback: try to get text from main content areas
     const mainContent = document.querySelector('main, article, [role="main"]');
     if (mainContent) {
       return mainContent.textContent?.trim() || null;
