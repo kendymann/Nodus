@@ -1,58 +1,190 @@
-import { X } from 'lucide-react';
+import { useState } from 'react';
+import { X, Search } from 'lucide-react';
 import type { GraphNode, GraphLink } from '../../types';
+import { MSG_FIND_TEXT } from '../../types';
+
+type ThemeType = 'normal' | 'classic' | 'monochrome';
 
 interface DetailPanelProps {
   node?: GraphNode;
   link?: GraphLink;
   nodes: GraphNode[];
+  links: GraphLink[];
+  theme?: ThemeType;
   onClose: () => void;
 }
 
-export function DetailPanel({ node, link, nodes, onClose }: DetailPanelProps) {
+export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClose }: DetailPanelProps) {
   if (!node && !link) return null;
 
+  // Theme prop is available for future theme-aware styling
+  // Currently DetailPanel uses Zinc colors which work for all themes
+  void theme; // Acknowledge theme prop for consistency
+
+  const [jumpStatus, setJumpStatus] = useState<'idle' | 'searching' | 'not-found'>('idle');
+
+  const handleJumpToSource = async () => {
+    if (!node?.sourceQuote) {
+      setJumpStatus('not-found');
+      setTimeout(() => setJumpStatus('idle'), 2000);
+      return;
+    }
+
+    setJumpStatus('searching');
+
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs[0]?.id) {
+        const response = await chrome.tabs.sendMessage(tabs[0].id, {
+          type: MSG_FIND_TEXT,
+          payload: { quote: node.sourceQuote },
+        });
+
+        if (response?.found) {
+          setJumpStatus('idle');
+        } else {
+          setJumpStatus('not-found');
+          setTimeout(() => setJumpStatus('idle'), 2000);
+        }
+      } else {
+        setJumpStatus('not-found');
+        setTimeout(() => setJumpStatus('idle'), 2000);
+      }
+    } catch (error) {
+      console.error('Error jumping to source:', error);
+      setJumpStatus('not-found');
+      setTimeout(() => setJumpStatus('idle'), 2000);
+    }
+  };
+
+  // Helper to get node ID from link source/target (handles both string and object)
+  const getNodeId = (linkEnd: string | GraphNode): string => {
+    return typeof linkEnd === 'string' ? linkEnd : linkEnd.id;
+  };
+
+  // Get all connections for the selected node
+  const getNodeConnections = (selectedNode: GraphNode) => {
+    const connections: Array<{ neighbor: GraphNode; reason: string }> = [];
+    
+    links.forEach(link => {
+      const sourceId = getNodeId(link.source);
+      const targetId = getNodeId(link.target);
+      
+      if (sourceId === selectedNode.id) {
+        const neighbor = nodes.find(n => n.id === targetId);
+        if (neighbor) {
+          connections.push({ neighbor, reason: link.reason });
+        }
+      } else if (targetId === selectedNode.id) {
+        const neighbor = nodes.find(n => n.id === sourceId);
+        if (neighbor) {
+          connections.push({ neighbor, reason: link.reason });
+        }
+      }
+    });
+    
+    return connections;
+  };
+
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-zinc-900/80 backdrop-blur-md border-t border-zinc-800 p-6 rounded-t-2xl shadow-2xl">
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-200 transition-colors"
-      >
-        <X className="w-5 h-5" />
-      </button>
-
-      {node && (
-        <div>
-          <h3 className="text-xl font-semibold text-white mb-2 font-sans">
-            {node.label}
-          </h3>
-          <p className="text-zinc-300 text-sm leading-relaxed font-sans mb-4">
-            {node.summary}
-          </p>
-          <div className="text-xs text-zinc-500 font-mono">
-            Group {node.group}
-          </div>
+    <div className="w-80 h-full bg-zinc-900/40 backdrop-blur-xl border-l border-white/10 flex flex-col shrink-0 z-50">
+      <div className="p-6 flex-1 overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-zinc-50 font-sans">Details</h2>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-200 transition-colors"
+            aria-label="Close panel"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-      )}
 
-      {link && (
-        <div>
-          <h3 className="text-lg font-semibold text-white mb-3 font-sans">
-            Connection
-          </h3>
-          <div className="mb-3">
-            <span className="text-zinc-300 font-medium">
-              {nodes.find(n => n.id === link.source)?.label || link.source}
-            </span>
-            <span className="text-zinc-500 mx-2">→</span>
-            <span className="text-zinc-300 font-medium">
-              {nodes.find(n => n.id === link.target)?.label || link.target}
-            </span>
+        {node && (
+          <div>
+            <h3 className="text-xl font-semibold text-zinc-50 mb-3 font-sans">
+              {node.label}
+            </h3>
+            <p className="text-zinc-300 text-sm leading-relaxed font-sans mb-6">
+              {node.summary}
+            </p>
+            
+            {/* Connections Section */}
+            {getNodeConnections(node).length > 0 && (
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <h4 className="text-sm font-semibold text-zinc-50 mb-4 font-sans uppercase tracking-wide">
+                  Connections
+                </h4>
+                <div className="space-y-4">
+                  {getNodeConnections(node).map((connection, index) => (
+                    <div key={index} className="pb-4 border-b border-white/5 last:border-b-0 last:pb-0">
+                      <div className="text-sm font-medium text-zinc-300 mb-1.5 font-sans">
+                        {connection.neighbor.label}
+                      </div>
+                      <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                        {connection.reason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Source Evidence Section */}
+            <div className="mt-6 pt-6 border-t border-white/5">
+              <h4 className="text-sm font-semibold text-zinc-50 mb-4 font-sans uppercase tracking-wide">
+                SOURCE EVIDENCE
+              </h4>
+              {node.sourceQuote ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-zinc-400 italic leading-relaxed font-sans">
+                    "{node.sourceQuote}"
+                  </p>
+                  <button
+                    onClick={handleJumpToSource}
+                    disabled={jumpStatus === 'searching'}
+                    className="px-2 py-1 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded transition-colors font-sans flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label="Jump to source"
+                  >
+                    <Search className="w-3 h-3" />
+                    <span>
+                      {jumpStatus === 'searching' 
+                        ? 'Searching...' 
+                        : jumpStatus === 'not-found' 
+                        ? 'Source not found' 
+                        : 'Jump to Source'}
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500 italic leading-relaxed font-sans">
+                  Source context unavailable.
+                </p>
+              )}
+            </div>
           </div>
-          <p className="text-zinc-300 text-sm leading-relaxed font-sans">
-            {link.reason}
-          </p>
-        </div>
-      )}
+        )}
+
+        {link && (
+          <div>
+            <h3 className="text-lg font-semibold text-zinc-50 mb-3 font-sans">
+              Connection
+            </h3>
+            <div className="mb-3">
+              <span className="text-zinc-300 font-medium">
+                {nodes.find(n => n.id === getNodeId(link.source))?.label || getNodeId(link.source)}
+              </span>
+              <span className="text-zinc-500 mx-2">→</span>
+              <span className="text-zinc-300 font-medium">
+                {nodes.find(n => n.id === getNodeId(link.target))?.label || getNodeId(link.target)}
+              </span>
+            </div>
+            <p className="text-zinc-300 text-sm leading-relaxed font-sans">
+              {link.reason}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "LexiGraph",
+  "name": "Nodus: AI Article Concept Mapper",
+  "short_name": "Nodus",
   "version": "1.0.0",
   "description": "Transform dense articles into interactive knowledge graphs",
   "permissions": [
@@ -27,7 +28,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "Open LexiGraph"
+    "default_title": "Open Nodus"
   },
   "icons": {
     "16": "icon-16.png",

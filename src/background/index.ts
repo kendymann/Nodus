@@ -6,6 +6,7 @@ export interface GraphNode {
   label: string;
   summary: string;
   group: number;
+  sourceQuote?: string;
   x?: number;
   y?: number;
   vx?: number;
@@ -37,19 +38,7 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Available Gemini models for graph generation
-const AVAILABLE_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
-let PREFERRED_MODEL_INDEX = 0; // Default to first model; can be updated via future user selection
-/*
-function setPreferredModel(modelName: string): void {
-  const index = AVAILABLE_MODELS.indexOf(modelName);
-  if (index !== -1) {
-    PREFERRED_MODEL_INDEX = index;
-    console.log(`Preferred model set to: ${modelName}`);
-  } else {
-    console.warn(`Model ${modelName} not found in available models`);
-  }
-}
-*/
+const AVAILABLE_MODELS: string[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
 
 
 const GEMINI_PROMPT = `# ROLE
@@ -58,7 +47,7 @@ You are a "Semantic Architect" specializing in graph theory and information synt
 # OUTPUT FORMAT: STRICT JSON
 You must return only raw JSON that adheres to this schema:
 {
-  "nodes": [{"id": "string", "label": "string", "summary": "string", "group": "number"}],
+  "nodes": [{"id": "string", "label": "string", "summary": "string", "group": "number", "sourceQuote": "string"}],
   "links": [{"source": "string", "target": "string", "reason": "string"}]
 }
 
@@ -66,9 +55,14 @@ You must return only raw JSON that adheres to this schema:
 1. LIMIT: Extract exactly 8-12 core concepts. Quality over quantity.
 2. GROUPING: Assign numeric IDs (1, 2, 3...) to nodes based on thematic clusters (e.g., all technical terms in group 1, all applications in group 2).
 3. SUMMARIES:
-   - Node Summary: Exactly 2 sentences. Focus on the definition within this context.
+   - Node Summary: Exactly 2 sentences. Focus on the definition within this context and utilize actual content from the article and cite it.
    - Link Reason: Exactly 1 sentence. Explain the causal or logical dependency (e.g., "A is the mathematical foundation for B").
-4. SHAPE: Ensure the graph is highly interconnected. Do not create "islands" (isolated nodes).
+4. SOURCE QUOTES:
+   - For every node extracted, you MUST include a "sourceQuote" field.
+   - The sourceQuote must be a direct, verbatim sentence or phrase from the provided article text that best supports the existence of that node.
+   - The quote should be the most relevant excerpt that demonstrates the concept in the original article.
+   - If no suitable quote exists, use an empty string "".
+5. SHAPE: Ensure the graph is highly interconnected. Do not create "islands" (isolated nodes).
 
 # CONSTRAINTS
 - Articles may be extremely long; focus only on the most significant architectural concepts.
@@ -78,7 +72,7 @@ Focus on the architectural connections. If Node A is a requirement for Node B, c
 
 Article content:
 `
-async function generateGraph(articleText: string): Promise<GraphData> {
+async function generateGraph(articleText: string, modelType?: string): Promise<GraphData> {
   if (!GEMINI_API_KEY) {
     throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your .env file.');
   }
@@ -86,16 +80,19 @@ async function generateGraph(articleText: string): Promise<GraphData> {
   const generationStarted = Date.now();
   const fullPrompt = GEMINI_PROMPT + articleText.substring(0, 100000);
 
-  const preferredModel = AVAILABLE_MODELS[PREFERRED_MODEL_INDEX];
+  // Use provided modelType or default to first model
+  const selectedModel = modelType && AVAILABLE_MODELS.includes(modelType) 
+    ? modelType 
+    : AVAILABLE_MODELS[0];
 
-  if (!preferredModel) {
+  if (!selectedModel) {
     throw new Error('No Gemini model available to generate graph.');
   }
 
-  console.log('Using Gemini model:', preferredModel);
+  console.log('Using Gemini model:', selectedModel);
 
   try {
-    const model = genAI.getGenerativeModel({ model: preferredModel });
+    const model = genAI.getGenerativeModel({ model: selectedModel });
 
     const apiStarted = Date.now();
     const result = await model.generateContent({
@@ -107,7 +104,7 @@ async function generateGraph(articleText: string): Promise<GraphData> {
         topK: 40,
       },
     });
-    console.log(`[timing] Gemini ${preferredModel} response: ${Date.now() - apiStarted}ms`);
+    console.log(`[timing] Gemini ${selectedModel} response: ${Date.now() - apiStarted}ms`);
 
     const response = result.response;
     const jsonText = response.text();
@@ -193,7 +190,9 @@ chrome.runtime.onMessage.addListener((message: Message) => {
             payload: { text: articleText },
           }).catch(() => {});
 
-          const graphData = await generateGraph(articleText);
+          // Extract modelType from message payload
+          const modelType = message.payload?.modelType;
+          const graphData = await generateGraph(articleText, modelType);
           const url = tabs[0].url || '';
           await chrome.storage.local.set({ [url]: graphData });
 

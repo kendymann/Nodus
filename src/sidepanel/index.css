@@ -6,6 +6,8 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
 }
 
 body {
@@ -18,5 +20,24 @@ body {
 #root {
   width: 100%;
   height: 100vh;
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 5px; /* Very thin for a minimalist look */
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Makes the track invisible */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a; /* Zinc-800: Subtle and dark */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46; /* Zinc-700: Slightly brighter on hover */
 }
 
