@@ -41,3 +41,16 @@ body {
   background: #3f3f46; /* Zinc-700: Slightly brighter on hover */
 }
 
+/* Nodus Logo Tracing Animation */
+@keyframes nodus-trace {
+  0% { stroke-dasharray: 0 1000; opacity: 0; fill: transparent; }
+  50% { stroke-dasharray: 1000 0; opacity: 1; fill: transparent; }
+  100% { stroke-dasharray: 1000 0; opacity: 1; fill: currentColor; }
+}
+
+.animate-nodus-trace {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 0;
+  animation: nodus-trace 3s ease-in-out infinite;
+}
+

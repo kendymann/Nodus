@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { GraphView } from './components/GraphView';
 import { DetailPanel } from './components/DetailPanel';
-import { Loader } from './components/Loader';
-import { Sparkles, ArrowLeft, RefreshCw, ChevronDown, Settings } from 'lucide-react';
+import { NodusLogo } from './components/NodusLogo';
+import { ArrowLeft, RefreshCw, ChevronDown, Settings } from 'lucide-react';
 import { useChromeStorage } from '../hooks/useChromeStorage';
 import { useCurrentTab } from '../hooks/useCurrentTab';
 import type { GraphData, GraphNode, GraphLink, Message } from '../types';
@@ -142,8 +142,11 @@ export function App() {
 
   if (loading || extracting) {
     return (
-      <div className="h-screen w-full bg-zinc-950 flex items-center justify-center">
-        <Loader />
+      <div className="h-screen w-full bg-zinc-950 flex flex-col items-center justify-center">
+        <div className="w-16 h-16">
+          <NodusLogo className="w-full h-full text-zinc-400" isAnimating={true} />
+        </div>
+        <p className="mt-6 text-zinc-400 text-sm font-mono">Mapping Concepts...</p>
       </div>
     );
   }
@@ -169,13 +172,13 @@ export function App() {
       <div className="h-screen w-full bg-zinc-950 flex flex-col">
         {/* Solid Glass Header */}
         <header className="w-full bg-zinc-900/40 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-center shrink-0">
-          <Sparkles className="w-6 h-6 text-zinc-400" />
+          <NodusLogo className="w-6 h-6 text-zinc-400" isAnimating={false} />
         </header>
 
         {/* Welcome Content */}
         <div className="flex-1 flex items-center justify-center p-6">
           <div className="text-center max-w-md">
-            <Sparkles className="w-12 h-12 text-zinc-400 mx-auto mb-4" />
+            <NodusLogo className="w-12 h-12 text-zinc-400 mx-auto mb-4" isAnimating={false} />
             <h2 className="text-xl font-semibold text-white mb-2 font-sans">
               Welcome to Nodus
             </h2>
@@ -189,7 +192,6 @@ export function App() {
                 onClick={handleGenerate}
                 className="px-6 py-3 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-l-lg transition-colors font-sans flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
                 Generate Graph
               </button>
               <button
@@ -229,7 +231,7 @@ export function App() {
       {/* Solid Glass Header with Navigation */}
       <header className="relative z-50 w-full bg-zinc-900/40 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-zinc-400" />
+          <NodusLogo className="w-6 h-6 text-zinc-400" isAnimating={false} />
         </div>
         <div className="flex items-center gap-2">
           {/* Theme Dropdown */}
