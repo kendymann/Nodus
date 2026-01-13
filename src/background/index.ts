@@ -42,33 +42,51 @@ const AVAILABLE_MODELS: string[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash']
 
 
 const GEMINI_PROMPT = `# ROLE
-You are a "Semantic Architect" specializing in graph theory and information synthesis. Your goal is to convert long-form articles into high-density, causal knowledge graphs.
+You are a "Knowledge Architect" specializing in hierarchical information synthesis. Your goal is to convert long-form articles into structured, two-tier knowledge graphs that reflect the natural hierarchy of ideas.
 
 # OUTPUT FORMAT: STRICT JSON
-You must return only raw JSON that adheres to this schema:
+Strict Requirement: Your output must be a single JSON object. Do not include any introductory text, markdown code blocks, or trailing explanations. Return ONLY the raw JSON object, nothing else.
 {
   "nodes": [{"id": "string", "label": "string", "summary": "string", "group": "number", "sourceQuote": "string"}],
   "links": [{"source": "string", "target": "string", "reason": "string"}]
 }
 
-# EXTRACTION RULES
-1. LIMIT: Extract exactly 8-12 core concepts. Quality over quantity.
-2. GROUPING: Assign numeric IDs (1, 2, 3...) to nodes based on thematic clusters (e.g., all technical terms in group 1, all applications in group 2).
-3. SUMMARIES:
-   - Node Summary: Exactly 2 sentences. Focus on the definition within this context and utilize actual content from the article and cite it.
-   - Link Reason: Exactly 1 sentence. Explain the causal or logical dependency (e.g., "A is the mathematical foundation for B").
-4. SOURCE QUOTES:
-   - For every node extracted, you MUST include a "sourceQuote" field.
-   - The sourceQuote must be a direct, verbatim sentence or phrase from the provided article text that best supports the existence of that node.
-   - The quote should be the most relevant excerpt that demonstrates the concept in the original article.
-   - If no suitable quote exists, use an empty string "".
-5. SHAPE: Ensure the graph is highly interconnected. Do not create "islands" (isolated nodes).
+# HIERARCHICAL PILLAR EXTRACTION STRATEGY
 
-# CONSTRAINTS
-- Articles may be extremely long; focus only on the most significant architectural concepts.
-- No conversational text, no markdown wrappers, just the JSON object.
+## The Architecture:
 
-Focus on the architectural connections. If Node A is a requirement for Node B, create a link. Edges must be directional where appropriate.
+### THE ROOT (id: "root")
+Create one central node representing the main subject or title of the article. This must have the highest degree of connectivity.
+
+### TIER 1: PILLARS (3-5 nodes)
+Identify the high-level themes, chapters, or core concepts that support the Root.
+
+### TIER 2: DETAILS (2-4 nodes per Pillar)
+Specific facts, examples, or sub-concepts that substantiate each Pillar.
+
+## CONNECTIVITY RULES:
+
+1. ROOT AT CENTER: All Pillar nodes MUST connect to the "root" node.
+
+2. DETAIL-TO-PILLAR: Every Detail node MUST link to its parent Pillar node. The reason should explain how this detail supports the pillar.
+
+3. PILLAR-TO-PILLAR: Link Pillars to each other ONLY if there is a direct thematic bridge or dependency.
+
+4. VISUAL HIERARCHY: Ensure Pillar nodes naturally gain more connections than Detail nodes so they appear larger in the force-directed graph.
+
+## EXTRACTION REQUIREMENTS:
+
+1. NODE SUMMARY: Exactly 2 sentences. Focus on the definition within this context using actual article content.
+
+2. SOURCE QUOTES: Every node (Root, Pillar, or Detail) MUST have a verbatim "sourceQuote" from the text for the citation feature. If no quote exists, use "".
+
+3. GROUPING: Root = 0, Pillars = 1, Details = 2+ (Group details based on which Pillar they support).
+
+4. LINK REASONS: Exactly 1 sentence explaining the hierarchical relationship for the sidebar context.
+
+## CONSTRAINTS:
+- Articles may be long; focus only on the most significant structural concepts.
+- No conversational text. No markdown. Just the JSON object.
 
 Article content:
 `
@@ -109,7 +127,21 @@ async function generateGraph(articleText: string, modelType?: string): Promise<G
     const response = result.response;
     const jsonText = response.text();
     const cleanJson = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const graphData: GraphData = JSON.parse(cleanJson);
+    
+    let graphData: GraphData;
+    try {
+      graphData = JSON.parse(cleanJson);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Raw response:', jsonText);
+      throw new Error('The AI returned invalid JSON. Please try regenerating the graph.');
+    }
+
+    // Safety check to prevent .filter() crashes
+    if (!graphData || !Array.isArray(graphData.nodes) || !Array.isArray(graphData.links)) {
+      console.error("Invalid AI response structure:", graphData);
+      throw new Error("The AI returned a malformed graph. Please try regenerating.");
+    }
 
     if (!graphData.nodes || graphData.nodes.length < 3) {
       throw new Error('Insufficient content: Generated graph has fewer than 3 nodes');
@@ -137,7 +169,11 @@ async function getArticleText(tabId: number): Promise<string> {
       });
       
       if (extractResponse && extractResponse.text) {
-        return extractResponse.text;
+        const text = extractResponse.text.trim();
+        if (text.length < 100) {
+          throw new Error('Article text too short. This page may be behind a paywall or have no readable content.');
+        }
+        return text;
       }
     } catch (e: any) {
       if (e.message?.includes('Receiving end does not exist') || 
@@ -156,16 +192,21 @@ async function getArticleText(tabId: number): Promise<string> {
         });
         
         if (extractResponse && extractResponse.text) {
-          return extractResponse.text;
+          const text = extractResponse.text.trim();
+          if (text.length < 100) {
+            throw new Error('Article text too short. This page may be behind a paywall or have no readable content.');
+          }
+          return text;
         }
       }
       throw e;
     } 
     
-    throw new Error('Failed to extract article text');
+    throw new Error('Failed to extract article text. This page may be behind a paywall or have no readable content.');
   } catch (error: any) {
     console.error('Error getting article text:', error);
-    throw new Error('Failed to extract article text. Make sure you are on a valid webpage with readable content.');
+    const errorMessage = error.message || 'Failed to extract article text. Make sure you are on a valid webpage with readable content.';
+    throw new Error(errorMessage);
   } finally {
     console.log(`[timing] getArticleText: ${Date.now() - started}ms`);
   }
