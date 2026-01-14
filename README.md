@@ -1,4 +1,4 @@
-# Nodus
+# Nodus | Article Concept Mapper
 
 Transform dense, linear articles into interactive, non-linear knowledge graphs.
 
