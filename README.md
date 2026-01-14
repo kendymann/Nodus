@@ -1,4 +1,4 @@
-# LexiGraph
+# Nodus
 
 Transform dense, linear articles into interactive, non-linear knowledge graphs.
 
