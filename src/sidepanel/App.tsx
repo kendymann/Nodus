@@ -158,6 +158,40 @@ export function App() {
     }
   };
 
+  const handleUpdateConnection = (sourceId: string, targetId: string, newReason: string) => {
+    if (!graphData) return;
+
+    // Find the link between these nodes
+    const link = graphData.links.find(l => {
+      const src = typeof l.source === 'string' ? l.source : (l.source as any).id;
+      const tgt = typeof l.target === 'string' ? l.target : (l.target as any).id;
+      return (src === sourceId && tgt === targetId) || (src === targetId && tgt === sourceId);
+    });
+
+    if (link) {
+      // Mutate the link's reason directly
+      link.reason = newReason;
+
+      // Trigger DetailPanel re-render
+      if (selectedNode) {
+        setSelectedNode({ ...selectedNode });
+      }
+    }
+  };
+
+  const handleUpdateSourceQuote = (nodeId: string, newQuote: string) => {
+    if (!graphData) return;
+
+    const node = graphData.nodes.find(n => n.id === nodeId);
+    if (node) {
+      // Mutate the node's sourceQuote directly
+      node.sourceQuote = newQuote;
+
+      // Trigger DetailPanel re-render
+      setSelectedNode({ ...node });
+    }
+  };
+
   if (loading || extracting) {
     return (
       <div className="h-screen w-full bg-zinc-950 flex flex-col items-center justify-center">
@@ -317,6 +351,8 @@ export function App() {
             theme={theme}
             onClose={handleCloseDetail}
             onUpdateNode={handleUpdateNode}
+            onUpdateConnection={handleUpdateConnection}
+            onUpdateSourceQuote={handleUpdateSourceQuote}
           />
         )}
       </div>
