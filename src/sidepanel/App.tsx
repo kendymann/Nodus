@@ -140,21 +140,45 @@ export function App() {
     setSelectedLink(null);
   };
 
+  // Helper to prepare graph data for storage
+  // D3 mutates links to have object references, we need to convert back to string IDs
+  const prepareForStorage = (data: GraphData): GraphData => {
+    return {
+      nodes: data.nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        summary: node.summary,
+        group: node.group,
+        sourceQuote: node.sourceQuote,
+        // Include D3 simulation properties
+        x: node.x,
+        y: node.y,
+        vx: node.vx,
+        vy: node.vy,
+        fx: node.fx,
+        fy: node.fy,
+      })),
+      links: data.links.map(link => ({
+        source: typeof link.source === 'string' ? link.source : (link.source as any).id,
+        target: typeof link.target === 'string' ? link.target : (link.target as any).id,
+        reason: link.reason,
+      })),
+    };
+  };
+
   const handleUpdateNode = (nodeId: string, newSummary: string) => {
     if (!graphData) return;
 
     const node = graphData.nodes.find(n => n.id === nodeId);
     if (node) {
-      // Mutate the node directly - this updates the object in memory
+      // Mutate the node directly
       node.summary = newSummary;
 
       // Update selectedNode to trigger DetailPanel re-render
-      // Create new object so React detects the change
       setSelectedNode({ ...node });
 
-      // Note: We don't save to storage here because setStoredGraph triggers
-      // the useChromeStorage hook to reload data, which loses D3 coordinates.
-      // Summary edits are kept in memory but won't persist across reloads.
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
     }
   };
 
@@ -169,13 +193,16 @@ export function App() {
     });
 
     if (link) {
-      // Mutate the link's reason directly
+      // Mutate the link's reason
       link.reason = newReason;
 
       // Trigger DetailPanel re-render
       if (selectedNode) {
         setSelectedNode({ ...selectedNode });
       }
+
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
     }
   };
 
@@ -184,11 +211,14 @@ export function App() {
 
     const node = graphData.nodes.find(n => n.id === nodeId);
     if (node) {
-      // Mutate the node's sourceQuote directly
+      // Mutate the node's sourceQuote
       node.sourceQuote = newQuote;
 
       // Trigger DetailPanel re-render
       setSelectedNode({ ...node });
+
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
     }
   };
 
