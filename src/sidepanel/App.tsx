@@ -101,7 +101,7 @@ export function App() {
     setSelectedNode(null);
     setSelectedLink(null);
     setDropdownOpen(false);
-    
+
     chrome.runtime.sendMessage({
       type: MSG_EXTRACT,
       payload: { modelType: selectedModel },
@@ -138,6 +138,88 @@ export function App() {
   const handleCloseDetail = () => {
     setSelectedNode(null);
     setSelectedLink(null);
+  };
+
+  // Helper to prepare graph data for storage
+  // D3 mutates links to have object references, we need to convert back to string IDs
+  const prepareForStorage = (data: GraphData): GraphData => {
+    return {
+      nodes: data.nodes.map(node => ({
+        id: node.id,
+        label: node.label,
+        summary: node.summary,
+        group: node.group,
+        sourceQuote: node.sourceQuote,
+        // Include D3 simulation properties
+        x: node.x,
+        y: node.y,
+        vx: node.vx,
+        vy: node.vy,
+        fx: node.fx,
+        fy: node.fy,
+      })),
+      links: data.links.map(link => ({
+        source: typeof link.source === 'string' ? link.source : (link.source as any).id,
+        target: typeof link.target === 'string' ? link.target : (link.target as any).id,
+        reason: link.reason,
+      })),
+    };
+  };
+
+  const handleUpdateNode = (nodeId: string, newSummary: string) => {
+    if (!graphData) return;
+
+    const node = graphData.nodes.find(n => n.id === nodeId);
+    if (node) {
+      // Mutate the node directly
+      node.summary = newSummary;
+
+      // Update selectedNode to trigger DetailPanel re-render
+      setSelectedNode({ ...node });
+
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
+    }
+  };
+
+  const handleUpdateConnection = (sourceId: string, targetId: string, newReason: string) => {
+    if (!graphData) return;
+
+    // Find the link between these nodes
+    const link = graphData.links.find(l => {
+      const src = typeof l.source === 'string' ? l.source : (l.source as any).id;
+      const tgt = typeof l.target === 'string' ? l.target : (l.target as any).id;
+      return (src === sourceId && tgt === targetId) || (src === targetId && tgt === sourceId);
+    });
+
+    if (link) {
+      // Mutate the link's reason
+      link.reason = newReason;
+
+      // Trigger DetailPanel re-render
+      if (selectedNode) {
+        setSelectedNode({ ...selectedNode });
+      }
+
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
+    }
+  };
+
+  const handleUpdateSourceQuote = (nodeId: string, newQuote: string) => {
+    if (!graphData) return;
+
+    const node = graphData.nodes.find(n => n.id === nodeId);
+    if (node) {
+      // Mutate the node's sourceQuote
+      node.sourceQuote = newQuote;
+
+      // Trigger DetailPanel re-render
+      setSelectedNode({ ...node });
+
+      // Save to storage with proper serialization
+      setStoredGraph(prepareForStorage(graphData));
+    }
   };
 
   if (loading || extracting) {
@@ -185,7 +267,7 @@ export function App() {
             <p className="text-zinc-400 text-sm mb-6 font-sans">
               Transform this article into an interactive knowledge graph. Click the button below to extract and visualize the concepts.
             </p>
-            
+
             {/* Split Glass Button */}
             <div className="relative inline-flex" ref={dropdownRef}>
               <button
@@ -201,7 +283,7 @@ export function App() {
               >
                 <ChevronDown className={`w-4 h-4 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-              
+
               {/* Dropdown Menu */}
               {dropdownOpen && (
                 <div className="absolute top-full right-0 mt-2 w-64 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden z-[100]">
@@ -209,9 +291,8 @@ export function App() {
                     <button
                       key={option.value}
                       onClick={() => handleModelSelect(option.value)}
-                      className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
-                        selectedModel === option.value ? 'bg-zinc-900/60' : ''
-                      }`}
+                      className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${selectedModel === option.value ? 'bg-zinc-900/60' : ''
+                        }`}
                     >
                       <div className="text-white text-sm font-medium">{option.label}</div>
                       <div className="text-zinc-400 text-xs mt-0.5">{option.description}</div>
@@ -245,16 +326,15 @@ export function App() {
               <span>Theme</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${themeDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {themeDropdownOpen && (
               <div className="absolute top-full right-0 mt-2 w-56 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden z-[100]">
                 {THEME_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => handleThemeSelect(option.value)}
-                    className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
-                      theme === option.value ? 'bg-zinc-900/60' : ''
-                    }`}
+                    className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${theme === option.value ? 'bg-zinc-900/60' : ''
+                      }`}
                   >
                     <div className="text-white text-sm font-medium">{option.label}</div>
                     <div className="text-zinc-400 text-xs mt-0.5">{option.description}</div>
@@ -263,7 +343,7 @@ export function App() {
               </div>
             )}
           </div>
-          
+
           <button
             onClick={handleBack}
             className="p-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors"
@@ -300,6 +380,9 @@ export function App() {
             links={graphData.links}
             theme={theme}
             onClose={handleCloseDetail}
+            onUpdateNode={handleUpdateNode}
+            onUpdateConnection={handleUpdateConnection}
+            onUpdateSourceQuote={handleUpdateSourceQuote}
           />
         )}
       </div>

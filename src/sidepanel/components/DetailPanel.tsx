@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Search } from 'lucide-react';
+import { X, Search, Edit, Save, XCircle } from 'lucide-react';
 import type { GraphNode, GraphLink } from '../../types';
 import { MSG_FIND_TEXT } from '../../types';
 
@@ -12,9 +12,12 @@ interface DetailPanelProps {
   links: GraphLink[];
   theme?: ThemeType;
   onClose: () => void;
+  onUpdateNode?: (nodeId: string, newSummary: string) => void;
+  onUpdateConnection?: (sourceId: string, targetId: string, newReason: string) => void;
+  onUpdateSourceQuote?: (nodeId: string, newQuote: string) => void;
 }
 
-export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClose }: DetailPanelProps) {
+export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClose, onUpdateNode, onUpdateConnection, onUpdateSourceQuote }: DetailPanelProps) {
   if (!node && !link) return null;
 
   // Theme prop is available for future theme-aware styling
@@ -22,6 +25,68 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
   void theme; // Acknowledge theme prop for consistency
 
   const [jumpStatus, setJumpStatus] = useState<'idle' | 'searching' | 'not-found'>('idle');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedSummary, setEditedSummary] = useState('');
+  const [editingConnectionIndex, setEditingConnectionIndex] = useState<number | null>(null);
+  const [editedConnectionReason, setEditedConnectionReason] = useState('');
+  const [editingSourceQuote, setEditingSourceQuote] = useState(false);
+  const [editedSourceQuote, setEditedSourceQuote] = useState('');
+
+  const handleEdit = () => {
+    if (node) {
+      setEditedSummary(node.summary);
+      setIsEditing(true);
+    }
+  };
+
+  const handleSave = () => {
+    if (node && onUpdateNode) {
+      onUpdateNode(node.id, editedSummary);
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedSummary('');
+  };
+
+  const handleEditConnection = (index: number, reason: string) => {
+    setEditedConnectionReason(reason);
+    setEditingConnectionIndex(index);
+  };
+
+  const handleSaveConnection = (connection: { neighbor: GraphNode; reason: string }) => {
+    if (node && onUpdateConnection) {
+      onUpdateConnection(node.id, connection.neighbor.id, editedConnectionReason);
+      setEditingConnectionIndex(null);
+      setEditedConnectionReason('');
+    }
+  };
+
+  const handleCancelConnection = () => {
+    setEditingConnectionIndex(null);
+    setEditedConnectionReason('');
+  };
+
+  const handleEditSourceQuote = () => {
+    if (node?.sourceQuote) {
+      setEditedSourceQuote(node.sourceQuote);
+      setEditingSourceQuote(true);
+    }
+  };
+
+  const handleSaveSourceQuote = () => {
+    if (node && onUpdateSourceQuote) {
+      onUpdateSourceQuote(node.id, editedSourceQuote);
+      setEditingSourceQuote(false);
+    }
+  };
+
+  const handleCancelSourceQuote = () => {
+    setEditingSourceQuote(false);
+    setEditedSourceQuote('');
+  };
 
   const handleJumpToSource = async () => {
     if (!node?.sourceQuote) {
@@ -65,11 +130,11 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
   // Get all connections for the selected node
   const getNodeConnections = (selectedNode: GraphNode) => {
     const connections: Array<{ neighbor: GraphNode; reason: string }> = [];
-    
+
     links.forEach(link => {
       const sourceId = getNodeId(link.source);
       const targetId = getNodeId(link.target);
-      
+
       if (sourceId === selectedNode.id) {
         const neighbor = nodes.find(n => n.id === targetId);
         if (neighbor) {
@@ -82,7 +147,7 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
         }
       }
     });
-    
+
     return connections;
   };
 
@@ -105,10 +170,52 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
             <h3 className="text-xl font-semibold text-zinc-50 mb-3 font-sans">
               {node.label}
             </h3>
-            <p className="text-zinc-300 text-sm leading-relaxed font-sans mb-6">
-              {node.summary}
-            </p>
-            
+
+            {/* Summary with Edit Capability */}
+            <div className="mb-6">
+              {isEditing ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={editedSummary}
+                    onChange={(e) => setEditedSummary(e.target.value)}
+                    className="w-full min-h-[120px] px-3 py-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 text-zinc-300 text-sm leading-relaxed font-sans rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-700 resize-y"
+                    placeholder="Enter node summary..."
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSave}
+                      className="px-3 py-1.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors text-sm font-sans flex items-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="px-3 py-1.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded-lg transition-colors text-sm font-sans flex items-center gap-1.5"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-zinc-300 text-sm leading-relaxed font-sans mb-2">
+                    {node.summary}
+                  </p>
+                  {onUpdateNode && (
+                    <button
+                      onClick={handleEdit}
+                      className="px-2 py-1 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded transition-colors font-sans flex items-center gap-1.5"
+                    >
+                      <Edit className="w-3 h-3" />
+                      Edit
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Connections Section */}
             {getNodeConnections(node).length > 0 && (
               <div className="mt-6 pt-6 border-t border-white/10">
@@ -121,9 +228,47 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
                       <div className="text-sm font-medium text-zinc-300 mb-1.5 font-sans">
                         {connection.neighbor.label}
                       </div>
-                      <p className="text-xs text-zinc-400 leading-relaxed font-sans">
-                        {connection.reason}
-                      </p>
+                      {editingConnectionIndex === index ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editedConnectionReason}
+                            onChange={(e) => setEditedConnectionReason(e.target.value)}
+                            className="w-full min-h-[60px] px-2 py-1.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 text-zinc-300 text-xs leading-relaxed font-sans rounded focus:outline-none focus:ring-2 focus:ring-zinc-700 resize-y"
+                            placeholder="Enter connection reason..."
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleSaveConnection(connection)}
+                              className="px-2 py-1 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded transition-colors text-xs font-sans flex items-center gap-1"
+                            >
+                              <Save className="w-3 h-3" />
+                              Save
+                            </button>
+                            <button
+                              onClick={handleCancelConnection}
+                              className="px-2 py-1 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded transition-colors text-xs font-sans flex items-center gap-1"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs text-zinc-400 leading-relaxed font-sans mb-1">
+                            {connection.reason}
+                          </p>
+                          {onUpdateConnection && (
+                            <button
+                              onClick={() => handleEditConnection(index, connection.reason)}
+                              className="px-1.5 py-0.5 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded transition-colors font-sans flex items-center gap-1"
+                            >
+                              <Edit className="w-2.5 h-2.5" />
+                              Edit
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -137,24 +282,64 @@ export function DetailPanel({ node, link, nodes, links, theme = 'normal', onClos
               </h4>
               {node.sourceQuote ? (
                 <div className="space-y-2">
-                  <p className="text-xs text-zinc-400 italic leading-relaxed font-sans">
-                    "{node.sourceQuote}"
-                  </p>
-                  <button
-                    onClick={handleJumpToSource}
-                    disabled={jumpStatus === 'searching'}
-                    className="px-2 py-1 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded transition-colors font-sans flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label="Jump to source"
-                  >
-                    <Search className="w-3 h-3" />
-                    <span>
-                      {jumpStatus === 'searching' 
-                        ? 'Searching...' 
-                        : jumpStatus === 'not-found' 
-                        ? 'Source not found' 
-                        : 'Jump to Source'}
-                    </span>
-                  </button>
+                  {editingSourceQuote ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editedSourceQuote}
+                        onChange={(e) => setEditedSourceQuote(e.target.value)}
+                        className="w-full min-h-[80px] px-2 py-1.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 text-zinc-300 text-xs italic leading-relaxed font-sans rounded focus:outline-none focus:ring-2 focus:ring-zinc-700 resize-y"
+                        placeholder="Enter source quote..."
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveSourceQuote}
+                          className="px-2 py-1 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded transition-colors text-xs font-sans flex items-center gap-1"
+                        >
+                          <Save className="w-3 h-3" />
+                          Save
+                        </button>
+                        <button
+                          onClick={handleCancelSourceQuote}
+                          className="px-2 py-1 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded transition-colors text-xs font-sans flex items-center gap-1"
+                        >
+                          <XCircle className="w-3 h-3" />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-zinc-400 italic leading-relaxed font-sans">
+                        "{node.sourceQuote}"
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleJumpToSource}
+                          disabled={jumpStatus === 'searching'}
+                          className="px-2 py-1 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded transition-colors font-sans flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="Jump to source"
+                        >
+                          <Search className="w-3 h-3" />
+                          <span>
+                            {jumpStatus === 'searching'
+                              ? 'Searching...'
+                              : jumpStatus === 'not-found'
+                                ? 'Source not found'
+                                : 'Jump to Source'}
+                          </span>
+                        </button>
+                        {onUpdateSourceQuote && (
+                          <button
+                            onClick={handleEditSourceQuote}
+                            className="px-2 py-1 text-xs bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-zinc-400 hover:text-white rounded transition-colors font-sans flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <p className="text-xs text-zinc-500 italic leading-relaxed font-sans">
