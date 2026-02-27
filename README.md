@@ -2,6 +2,9 @@
 
 Transform dense, linear articles into interactive, non-linear knowledge graphs.
 
+![Nodus Image](public/nodus.png)
+
+
 ## Prerequisites
 
 - Node.js 18+ and npm
@@ -11,18 +14,21 @@ Transform dense, linear articles into interactive, non-linear knowledge graphs.
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Configure API Key:
-   
+
    Create a `.env` file in the root directory:
+
    ```
    VITE_GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
 3. Build the extension:
+
 ```bash
 npm run build
 ```
@@ -34,7 +40,7 @@ npm run build
    - Select the `dist` folder from this project
 
 5. Add Icons (Optional):
-   
+
    Replace the placeholder files in `public/` with actual PNG icons:
    - `public/icon-16.png` (16x16 pixels)
    - `public/icon-48.png` (48x48 pixels)
@@ -51,6 +57,7 @@ npm run build
 ## Development
 
 Run in development mode:
+
 ```bash
 npm run dev
 ```
@@ -70,6 +77,7 @@ npm run dev
 ## Architecture
 
 The extension follows Manifest V3 architecture:
+
 1. Content Script extracts article text using Readability.js
 2. Background Worker sends text to Gemini API and processes response
 3. Side Panel displays the interactive graph using react-force-graph-2d
@@ -88,5 +96,7 @@ The extension follows Manifest V3 architecture:
 ## Troubleshooting
 
 - **"API key not configured"**: Ensure `.env` file exists with `VITE_GEMINI_API_KEY`
-- **"Failed to extract article"**: Make sure you're on a valid article page with readable content
-- **Graph not showing**: Check browser console for errors and ensure you have a stable internet connection
+- **"Failed to extract article"**: Make sure you're on a valid article page with readable
+  content
+- **Graph not showing**: Check browser console for errors and ensure you have a stable
+  internet connection
