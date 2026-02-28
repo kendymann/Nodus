@@ -1,15 +1,14 @@
-# Nodus | Article Concept Mapper
+# Nodus | AI Article Concept Mapper
 
 Transform dense, linear articles into interactive, non-linear knowledge graphs.
 
 ![Nodus Image](public/nodus.png)
 
-
 ## Prerequisites
 
 - Node.js 18+ and npm
 - Chrome browser
-- Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 
 ## Setup
 
@@ -19,27 +18,19 @@ Transform dense, linear articles into interactive, non-linear knowledge graphs.
 npm install
 ```
 
-2. Configure API Key:
-
-   Create a `.env` file in the root directory:
-
-   ```
-   VITE_GEMINI_API_KEY=your_gemini_api_key_here
-   ```
-
-3. Build the extension:
+2. Build the extension:
 
 ```bash
 npm run build
 ```
 
-4. Load the extension in Chrome:
+3. Load the extension in Chrome:
    - Open `chrome://extensions/`
    - Enable "Developer mode" (toggle in top-right)
    - Click "Load unpacked"
    - Select the `dist` folder from this project
 
-5. Add Icons (Optional):
+4. Add Icons (Optional):
 
    Replace the placeholder files in `public/` with actual PNG icons:
    - `public/icon-16.png` (16x16 pixels)
@@ -49,10 +40,11 @@ npm run build
 ## Usage
 
 1. Navigate to any article or blog post
-2. Click the LexiGraph extension icon in the Chrome toolbar
+2. Click the Nodus extension icon in the Chrome toolbar
 3. The side panel will open
-4. Click "Generate Graph" to transform the article into a knowledge graph
-5. Click on nodes or edges to see detailed summaries
+4. Enter your Gemini API key in the welcome screen
+5. Click "Generate Graph" to transform the article into a knowledge graph
+6. Click on nodes or edges to see detailed summaries
 
 ## Development
 
@@ -95,7 +87,7 @@ The extension follows Manifest V3 architecture:
 
 ## Troubleshooting
 
-- **"API key not configured"**: Ensure `.env` file exists with `VITE_GEMINI_API_KEY`
+- **"API key not configured"**: Add your Gemini API key in the side panel welcome screen
 - **"Failed to extract article"**: Make sure you're on a valid article page with readable
   content
 - **Graph not showing**: Check browser console for errors and ensure you have a stable

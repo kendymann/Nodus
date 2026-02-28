@@ -33,9 +33,9 @@ export const MSG_EXTRACT = 'MSG_EXTRACT';
 export const MSG_EXTRACTED = 'MSG_EXTRACTED';
 export const MSG_GRAPH_DATA = 'MSG_GRAPH_DATA';
 export const MSG_ERROR = 'MSG_ERROR';
+export const MSG_VALIDATE_KEY = 'MSG_VALIDATE_KEY';
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const GEMINI_API_KEY_STORAGE_KEY = 'geminiApiKey';
 
 // Available Gemini models for graph generation
 const AVAILABLE_MODELS: string[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
@@ -90,9 +90,9 @@ Specific facts, examples, or sub-concepts that substantiate each Pillar.
 
 Article content:
 `
-async function generateGraph(articleText: string, modelType?: string): Promise<GraphData> {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key not configured. Please set VITE_GEMINI_API_KEY in your .env file.');
+async function generateGraph(articleText: string, modelType: string | undefined, apiKey: string): Promise<GraphData> {
+  if (!apiKey) {
+    throw new Error('Gemini API key not configured. Please add your key in the Nodus side panel.');
   }
 
   const generationStarted = Date.now();
@@ -110,6 +110,7 @@ async function generateGraph(articleText: string, modelType?: string): Promise<G
   console.log('Using Gemini model:', selectedModel);
 
   try {
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: selectedModel });
 
     const apiStarted = Date.now();
@@ -157,6 +158,23 @@ async function generateGraph(articleText: string, modelType?: string): Promise<G
   } catch (error: any) {
     console.error('Gemini generation failed:', error?.message || error);
     throw new Error(error?.message || 'Failed to generate graph with Gemini.');
+  }
+}
+
+async function getStoredApiKey(): Promise<string> {
+  const result = await chrome.storage.local.get(GEMINI_API_KEY_STORAGE_KEY);
+  return result[GEMINI_API_KEY_STORAGE_KEY] || '';
+}
+
+async function validateGeminiApiKey(apiKey: string): Promise<boolean> {
+  if (!apiKey) return false;
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+    );
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -212,12 +230,21 @@ async function getArticleText(tabId: number): Promise<string> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: Message) => {
+chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+  if (message.type === MSG_VALIDATE_KEY) {
+    const apiKey = message.payload?.apiKey || '';
+    validateGeminiApiKey(apiKey)
+      .then((valid) => sendResponse({ valid }))
+      .catch(() => sendResponse({ valid: false }));
+    return true;
+  }
+
   if (message.type === MSG_EXTRACT) {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs[0]?.id) {
         const pipelineStart = Date.now();
         try {
+          const apiKey = await getStoredApiKey();
           const extractStart = Date.now();
           const articleText = await getArticleText(tabs[0].id);
           console.log(`[timing] extractArticleText: ${Date.now() - extractStart}ms`);
@@ -233,7 +260,7 @@ chrome.runtime.onMessage.addListener((message: Message) => {
 
           // Extract modelType from message payload
           const modelType = message.payload?.modelType;
-          const graphData = await generateGraph(articleText, modelType);
+          const graphData = await generateGraph(articleText, modelType, apiKey);
           const url = tabs[0].url || '';
           await chrome.storage.local.set({ [url]: graphData });
 

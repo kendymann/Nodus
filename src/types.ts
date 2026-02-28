@@ -33,4 +33,5 @@ export const MSG_EXTRACTED = 'MSG_EXTRACTED';
 export const MSG_GRAPH_DATA = 'MSG_GRAPH_DATA';
 export const MSG_ERROR = 'MSG_ERROR';
 export const MSG_FIND_TEXT = 'MSG_FIND_TEXT';
+export const MSG_VALIDATE_KEY = 'MSG_VALIDATE_KEY';
 
