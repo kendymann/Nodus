@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-chrome
+./dist-chrome
 dist-firefox
 release
 *.log
