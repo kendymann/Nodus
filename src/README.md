@@ -27,9 +27,3 @@ npm run build
    - Enable "Developer mode" (toggle in top-right)
    - Click "Load unpacked"
    - Select the `dist` folder from this project
-
-## Optional: watch mode
-
-```bash
-npm run dev
-```
