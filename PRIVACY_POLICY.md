@@ -1,5 +1,5 @@
-Privacy Policy for Nodus
-Last updated: 2026-02-28
+Privacy Policy for Nodus  
+Last updated: 2026-02-28  
 Author: Rohin Aulakh
 
 Nodus helps users turn article content into interactive knowledge graphs. 
@@ -35,8 +35,11 @@ Your choices:
 You can remove the stored API key by clearing the extension’s storage.
 You can uninstall the extension at any time to remove local data.
 
-Changes to this policy
-We may update this policy. The “Last updated” date will reflect changes.
+Changes to this policy:
 
-Contact:
+We may update this policy. The “Last updated” date will reflect changes.
+  
+  
+Contact:  
+
 For questions, contact: rohinaulakh@gmail.com
