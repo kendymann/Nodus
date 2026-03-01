@@ -287,8 +287,24 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  if (tab.id) {
-    chrome.sidePanel.open({ tabId: tab.id });
+  const tabId = tab.id;
+  if (tabId) {
+    const browserApi = (globalThis as any).browser;
+
+    if (chrome.sidePanel?.open) {
+      chrome.sidePanel.open({ tabId });
+      return;
+    }
+
+    if (browserApi?.sidebarAction?.open) {
+      browserApi.sidebarAction.open();
+      return;
+    }
+
+    const chromeAny = chrome as any;
+    if (chromeAny.sidebarAction?.open) {
+      chromeAny.sidebarAction.open();
+    }
   }
 });
 

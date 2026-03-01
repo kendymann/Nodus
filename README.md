@@ -1,41 +1,24 @@
 # Nodus | AI Article Concept Mapper
 
-Transform dense, linear articles into interactive, non-linear knowledge graphs.
+Nodus transforms dense, linear articles into interactive, non-linear knowledge graphs. It
+is designed to help you understand complex reading faster by turning long-form content
+into a visual map of concepts and relationships. Open an article, generate a graph, and
+explore summaries and source quotes for each node to reinforce understanding and
+retention.
 
-![Nodus Image](public/nodus.png)
+![Nodus Image](public/nodus.png){width=50% height=50%}
 
-## Prerequisites
+## Install
 
-- Node.js 18+ and npm
-- Chrome browser
-- Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+Install Nodus from the Chrome Web Store and pin it to your toolbar for quick access. After
+installation, open any article and click the Nodus icon to launch the side panel.
 
-## Setup
+## Description
 
-1. Install dependencies:
-
-```bash
-npm install
-```
-
-2. Build the extension:
-
-```bash
-npm run build
-```
-
-3. Load the extension in Chrome:
-   - Open `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top-right)
-   - Click "Load unpacked"
-   - Select the `dist` folder from this project
-
-4. Add Icons (Optional):
-
-   Replace the placeholder files in `public/` with actual PNG icons:
-   - `public/icon-16.png` (16x16 pixels)
-   - `public/icon-48.png` (48x48 pixels)
-   - `public/icon-128.png` (128x128 pixels)
+Nodus converts any readable article into a visual concept map so you can quickly see the
+structure of ideas, drill into summaries, and revisit key points later. It is useful for
+students, researchers, writers, and anyone who reads long-form content and wants a faster,
+clearer way to understand it.
 
 ## Usage
 
@@ -46,34 +29,38 @@ npm run build
 5. Click "Generate Graph" to transform the article into a knowledge graph
 6. Click on nodes or edges to see detailed summaries
 
-## Development
+## Support
 
-Run in development mode:
+This repository is the official support site for Nodus. If you need help, start here
+before opening an issue.
 
-```bash
-npm run dev
-```
+### FAQ
 
-## Project Structure
+- **What data is sent to the API?** The extension sends the extracted article text to the
+  Gemini API to generate the graph. Your API key is stored locally in Chrome.
+- **Why do I need an API key?** The Gemini API powers the concept extraction and
+  summaries.
+- **Does Nodus work on every page?** It works best on readable article pages like wiki's.
+  Paywalled and heavily scripted pages may not yield enough text. PDF pages are not
+  transcribable by Nodus.
 
-- `/src/background` - Service worker for API calls and messaging
-- `/src/content` - Content script for extracting article text using Readability.js
-- `/src/sidepanel` - React UI for the Chrome side panel
-  - `/components/GraphView.tsx` - Force-directed graph visualization
-  - `/components/DetailPanel.tsx` - Detail panel for node/edge information
-  - `/components/Loader.tsx` - Loading animation
-- `/src/hooks` - Custom React hooks
-  - `useChromeStorage.ts` - Chrome storage persistence
-  - `useCurrentTab.ts` - Current tab URL tracking
+### Troubleshooting
 
-## Architecture
+- **"API key not configured"**: Add your Gemini API key in the side panel welcome screen.
+- **"Failed to extract article"**: Confirm the page is an article with readable text and
+  reload.
+- **Graph not showing**: Open the extension page in `chrome://extensions`, check for
+  errors, and verify your network connection.
+- **Slow generation**: Larger articles may take longer; try a shorter article to verify
+  setup.
 
-The extension follows Manifest V3 architecture:
+### Getting help
 
-1. Content Script extracts article text using Readability.js
-2. Background Worker sends text to Gemini API and processes response
-3. Side Panel displays the interactive graph using react-force-graph-2d
-4. Chrome Storage persists graphs per URL for quick access
+If the issue persists:
+
+1. Open an issue in this repo.
+2. Include the page URL (if shareable), steps to reproduce, and any console errors from
+   `chrome://extensions`.
 
 ## Features
 
@@ -85,10 +72,7 @@ The extension follows Manifest V3 architecture:
 - Graph persistence across tab switches
 - Empty state handling for insufficient content
 
-## Troubleshooting
+## Local development and deployment
 
-- **"API key not configured"**: Add your Gemini API key in the side panel welcome screen
-- **"Failed to extract article"**: Make sure you're on a valid article page with readable
-  content
-- **Graph not showing**: Check browser console for errors and ensure you have a stable
-  internet connection
+If you want to run the extension locally, build it yourself, or package it for
+distribution, see the developer guide in [src/README.md](src/README.md).
