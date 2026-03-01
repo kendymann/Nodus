@@ -6,7 +6,7 @@ into a visual map of concepts and relationships. Open an article, generate a gra
 explore summaries and source quotes for each node to reinforce understanding and
 retention.
 
-![Nodus Image](public/nodus.png){width=50% height=50%}
+![Nodus Image](public/nodus.png)
 
 ## Install
 
@@ -75,4 +75,4 @@ If the issue persists:
 ## Local development and deployment
 
 If you want to run the extension locally, build it yourself, or package it for
-distribution, see the developer guide in [src/README.md](src/README.md).
+distribution, see the [developer guide](src/README.md).
