@@ -59,8 +59,7 @@ before opening an issue.
 If the issue persists:
 
 1. Open an issue in this repo.
-2. Include the page URL (if shareable), steps to reproduce, and any console errors from
-   `chrome://extensions`.
+2. Include the page URL (if shareable), steps to reproduce, and any console errors
 
 ## Features
 
