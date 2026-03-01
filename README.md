@@ -88,8 +88,8 @@ distribution, see the [developer guide](src/README.md)
 
 ## Privacy Policy
 
-Read the privacy policy at [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+Read the privacy policy [here](PRIVACY_POLICY.md).
 
 ## License
 
-Licensed under the MIT License. See [LICENSE](LICENSE).
+Licensed under the [MIT License](LICENSE).
