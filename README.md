@@ -72,7 +72,7 @@ If the issue persists:
 - Graph persistence across tab switches
 - Empty state handling for insufficient content
 
-## Local development and deployment
+## Local Development + Deployment
 
 If you want to run the extension locally, build it yourself, or package it for
 distribution, see the [developer guide](src/README.md).
