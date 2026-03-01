@@ -55,6 +55,69 @@ export function GraphView({
 		return data.nodes.find((node) => node.id === rootId) || data.nodes[0];
 	}, [data, nodeDegrees]);
 
+	const nodeLevels = useMemo(() => {
+		const levels = new Map<string, number>();
+		if (!rootNode) return levels;
+
+		const adjacency = new Map<string, Set<string>>();
+		data.nodes.forEach((node) => adjacency.set(node.id, new Set()));
+		data.links.forEach((link) => {
+			const sourceId =
+				typeof link.source === "string"
+					? link.source
+					: (link.source as any).id || link.source;
+			const targetId =
+				typeof link.target === "string"
+					? link.target
+					: (link.target as any).id || link.target;
+			adjacency.get(sourceId)?.add(targetId);
+			adjacency.get(targetId)?.add(sourceId);
+		});
+
+		const queue: string[] = [rootNode.id];
+		levels.set(rootNode.id, 0);
+		while (queue.length > 0) {
+			const currentId = queue.shift() as string;
+			const currentLevel = levels.get(currentId) ?? 0;
+			adjacency.get(currentId)?.forEach((neighborId) => {
+				if (!levels.has(neighborId)) {
+					levels.set(neighborId, currentLevel + 1);
+					queue.push(neighborId);
+				}
+			});
+		}
+
+		data.nodes.forEach((node) => {
+			if (!levels.has(node.id)) {
+				levels.set(node.id, 1);
+			}
+		});
+
+		return levels;
+	}, [data, rootNode]);
+
+	const levelColors = useMemo(() => {
+		const palette = [
+			"#3b82f6",
+			"#ef4444",
+			"#10b981",
+			"#f59e0b",
+			"#8b5cf6",
+			"#ec4899",
+			"#06b6d4",
+			"#84cc16",
+			"#f97316",
+			"#6366f1",
+		];
+
+		for (let i = palette.length - 1; i > 0; i -= 1) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[palette[i], palette[j]] = [palette[j], palette[i]];
+		}
+
+		return palette;
+	}, [data]);
+
 	// Calculate active node IDs (selected node + its neighbors)
 	const activeNodeIds = useMemo(() => {
 		const activeIds = new Set<string>();
@@ -178,48 +241,29 @@ export function GraphView({
 			ctx.textAlign = "center";
 			ctx.textBaseline = "middle";
 
-			// Theme-based node color
 			let color: string;
-			let strokeColor: string;
-
+			const strokeColor = "#09090b";
 			if (theme === "whiteout") {
-				// Whiteout: All nodes are white
 				color = "#FFFFFF";
-				strokeColor = "#3f3f46"; // Zinc-700 for subtle border
 			} else if (theme === "greyscale") {
-				// Greyscale: Root is Zinc-100, others are Zinc-500
 				color = isRoot ? "#F4F4F5" : "#52525B";
-				strokeColor = "#09090b";
-			} else {
-				// Classic: Use original group colors
-				const groupColors = [
-					"#3b82f6",
-					"#ef4444",
-					"#10b981",
-					"#f59e0b",
-					"#8b5cf6",
-					"#ec4899",
-					"#06b6d4",
-					"#84cc16",
-					"#f97316",
-					"#6366f1",
-				];
-				color = groupColors[(node.group - 1) % groupColors.length];
-				strokeColor = "#09090b";
-			}
-
-			if (isRoot) {
+			} else if (isRoot) {
 				color = "#FFFFFF";
-				strokeColor = "#facc15"; // Yellow outline for root node
+			} else {
+				const level = nodeLevels.get(node.id) ?? 1;
+				const normalizedLevel = Math.max(1, level);
+				color = levelColors[(normalizedLevel - 1) % levelColors.length];
 			}
 
 			ctx.beginPath();
 			ctx.arc(node.x!, node.y!, radius, 0, 2 * Math.PI, false);
 			ctx.fillStyle = color;
 			ctx.fill();
-			ctx.strokeStyle = strokeColor;
-			ctx.lineWidth = 2 / globalScale;
-			ctx.stroke();
+			if (!isRoot && theme !== "whiteout") {
+				ctx.strokeStyle = strokeColor;
+				ctx.lineWidth = 2 / globalScale;
+				ctx.stroke();
+			}
 
 			// Typography: Position labels outside the radius to avoid overlap
 			// Text Contrast: Ensure labels remain legible (Zinc-200 or White) regardless of theme
@@ -244,7 +288,7 @@ export function GraphView({
 				ctx.fillText(label, node.x!, textY);
 			}
 		},
-		[rootNode, nodeDegrees, selectedNode, activeNodeIds, theme],
+		[rootNode, nodeDegrees, selectedNode, activeNodeIds, levelColors, nodeLevels, theme],
 	);
 
 	return (

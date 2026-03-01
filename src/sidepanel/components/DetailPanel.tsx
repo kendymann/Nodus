@@ -33,6 +33,8 @@ export function DetailPanel({
 }: DetailPanelProps) {
 	if (!node && !link) return null;
 
+	const browserApi = (globalThis as any).browser;
+
 	// Theme prop is available for future theme-aware styling
 	// Currently DetailPanel uses Zinc colors which work for all themes
 	void theme; // Acknowledge theme prop for consistency
@@ -62,6 +64,67 @@ export function DetailPanel({
 	const [editedConnectionReason, setEditedConnectionReason] = useState("");
 	const [editingSourceQuote, setEditingSourceQuote] = useState(false);
 	const [editedSourceQuote, setEditedSourceQuote] = useState("");
+
+	const getActiveTabId = async (): Promise<number | null> => {
+		if (browserApi?.tabs?.query) {
+			const tabs = await browserApi.tabs.query({ active: true, currentWindow: true });
+			return tabs[0]?.id ?? null;
+		}
+
+		return new Promise<number | null>((resolve) => {
+			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+				resolve(tabs[0]?.id ?? null);
+			});
+		});
+	};
+
+	const sendMessageToTab = async (tabId: number, message: any) => {
+		if (browserApi?.tabs?.sendMessage) {
+			return browserApi.tabs.sendMessage(tabId, message);
+		}
+
+		return new Promise<any>((resolve, reject) => {
+			chrome.tabs.sendMessage(tabId, message, (response) => {
+				const lastError = chrome.runtime.lastError;
+				if (lastError) {
+					reject(new Error(lastError.message));
+				} else {
+					resolve(response);
+				}
+			});
+		});
+	};
+
+	const injectContentScript = async (tabId: number) => {
+		if (chrome.scripting?.executeScript) {
+			await chrome.scripting.executeScript({
+				target: { tabId },
+				files: ["content.js"],
+			});
+			return;
+		}
+
+		if (browserApi?.tabs?.executeScript) {
+			await browserApi.tabs.executeScript(tabId, { file: "content.js" });
+			return;
+		}
+
+		await new Promise<void>((resolve, reject) => {
+			if (!chrome.tabs.executeScript) {
+				reject(new Error("Script injection not supported."));
+				return;
+			}
+
+			chrome.tabs.executeScript(tabId, { file: "content.js" }, () => {
+				const lastError = chrome.runtime.lastError;
+				if (lastError) {
+					reject(new Error(lastError.message));
+				} else {
+					resolve();
+				}
+			});
+		});
+	};
 
 	useEffect(() => {
 		const handleMouseMove = (event: MouseEvent) => {
@@ -187,19 +250,38 @@ export function DetailPanel({
 		setJumpStatus("searching");
 
 		try {
-			const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-			if (tabs[0]?.id) {
-				const response = await chrome.tabs.sendMessage(tabs[0].id, {
-					type: MSG_FIND_TEXT,
-					payload: { quote: node.sourceQuote },
-				});
+			const tabId = await getActiveTabId();
+			if (!tabId) {
+				setJumpStatus("not-found");
+				setTimeout(() => setJumpStatus("idle"), 2000);
+				return;
+			}
 
-				if (response?.found) {
-					setJumpStatus("idle");
+			const request = {
+				type: MSG_FIND_TEXT,
+				payload: { quote: node.sourceQuote },
+			};
+
+			let response: { found?: boolean } | undefined;
+
+			try {
+				response = await sendMessageToTab(tabId, request);
+			} catch (error: any) {
+				const message = error?.message || "";
+				if (
+					message.includes("Receiving end does not exist") ||
+					message.includes("Could not establish connection") ||
+					message.includes("message port closed")
+				) {
+					await injectContentScript(tabId);
+					response = await sendMessageToTab(tabId, request);
 				} else {
-					setJumpStatus("not-found");
-					setTimeout(() => setJumpStatus("idle"), 2000);
+					throw error;
 				}
+			}
+
+			if (response?.found) {
+				setJumpStatus("idle");
 			} else {
 				setJumpStatus("not-found");
 				setTimeout(() => setJumpStatus("idle"), 2000);

@@ -10,8 +10,9 @@ retention.
 
 ## Install
 
-Install Nodus from the Chrome Web Store and pin it to your toolbar for quick access. After
-installation, open any article and click the Nodus icon to launch the side panel.
+Install Nodus from the Chrome Web Store or Firefox Add-ons and pin it to your toolbar for
+quick access. After installation, open any article and click the Nodus icon to launch the
+UI (Chrome opens the side panel, Firefox opens a popup).
 
 ## Description
 
@@ -23,8 +24,8 @@ clearer way to understand it.
 ## Usage
 
 1. Navigate to any article or blog post
-2. Click the Nodus extension icon in the Chrome toolbar
-3. The side panel will open
+2. Click the Nodus extension icon in the Chrome/Firefox browser toolbar
+3. The UI will open
 4. Enter your Gemini API key in the welcome screen
 5. Click "Generate Graph" to transform the article into a knowledge graph
 6. Click on nodes or edges to see detailed summaries
@@ -37,11 +38,11 @@ before opening an issue.
 ### FAQ
 
 - **What data is sent to the API?** The extension sends the extracted article text to the
-  Gemini API to generate the graph. Your API key is stored locally in Chrome.
+  Gemini API to generate the graph. Your API key is stored locally in your Chrome/Firefox browser.
 - **Why do I need an API key?** The Gemini API powers the concept extraction and
   summaries.
 - **Does Nodus work on every page?** It works best on readable article pages like wiki's.
-  Paywalled and heavily scripted pages may not yield enough text. PDF pages are not
+  Paywalled and heavily scripted pages may not yield enough text. PDF docs are not
   transcribable by Nodus.
 
 ### Troubleshooting
@@ -49,8 +50,8 @@ before opening an issue.
 - **"API key not configured"**: Add your Gemini API key in the side panel welcome screen.
 - **"Failed to extract article"**: Confirm the page is an article with readable text and
   reload.
-- **Graph not showing**: Open the extension page in `chrome://extensions`, check for
-  errors, and verify your network connection.
+- **Graph not showing**: Check the extension console (`chrome://extensions` in Chrome or
+  `about:debugging` in Firefox) and verify your network connection.
 - **Slow generation**: Larger articles may take longer; try a shorter article to verify
   setup.
 

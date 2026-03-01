@@ -4,8 +4,22 @@ export function useCurrentTab() {
   const [url, setUrl] = useState<string>('');
 
   useEffect(() => {
+    const browserApi = (globalThis as any).browser;
+
     async function getCurrentTab() {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let tab: chrome.tabs.Tab | undefined;
+
+      if (browserApi?.tabs?.query) {
+        const tabs = await browserApi.tabs.query({ active: true, currentWindow: true });
+        tab = tabs[0];
+      } else {
+        tab = await new Promise<chrome.tabs.Tab | undefined>((resolve) => {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            resolve(tabs[0]);
+          });
+        });
+      }
+
       if (tab?.url) {
         setUrl(tab.url);
       }

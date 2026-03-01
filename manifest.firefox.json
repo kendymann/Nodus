@@ -1,24 +1,22 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Nodus",
   "short_name": "Nodus: AI Article Concept Mapper",
   "version": "1.0.0",
   "description": "Transform dense articles into interactive knowledge graphs",
   "permissions": [
     "storage",
-    "scripting",
-    "activeTab"
+    "activeTab",
+    "tabs",
+    "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "scripts": ["background.js"],
+    "persistent": false
   },
-  "sidebar_action": {
-    "default_title": "Open Nodus",
-    "default_panel": "sidepanel.html"
-  },
-  "action": {
-    "default_title": "Open Nodus"
+  "browser_action": {
+    "default_title": "Nodus",
+    "default_popup": "sidepanel.html"
   },
   "icons": {
     "16": "icon16.png",

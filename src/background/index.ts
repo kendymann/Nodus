@@ -37,6 +37,111 @@ export const MSG_VALIDATE_KEY = 'MSG_VALIDATE_KEY';
 
 const GEMINI_API_KEY_STORAGE_KEY = 'geminiApiKey';
 
+const browserApi = (globalThis as any).browser;
+
+const getStorageRecord = async (key: string): Promise<Record<string, any>> => {
+  if (browserApi?.storage?.local?.get) {
+    return (await browserApi.storage.local.get(key)) || {};
+  }
+
+  return new Promise((resolve) => {
+    chrome.storage.local.get(key, (result) => {
+      resolve(result || {});
+    });
+  });
+};
+
+const getStorageValue = async (key: string) => {
+  const record = await getStorageRecord(key);
+  return record[key];
+};
+
+const setStorageValue = async (key: string, value: any) => {
+  if (browserApi?.storage?.local?.set) {
+    await browserApi.storage.local.set({ [key]: value });
+    return;
+  }
+
+  await new Promise((resolve) => {
+    chrome.storage.local.set({ [key]: value }, () => resolve(undefined));
+  });
+};
+
+const getTabById = async (tabId: number) => {
+  if (browserApi?.tabs?.get) {
+    return browserApi.tabs.get(tabId);
+  }
+
+  return new Promise<chrome.tabs.Tab | undefined>((resolve) => {
+    chrome.tabs.get(tabId, (tab) => resolve(tab));
+  });
+};
+
+const executeContentScript = async (tabId: number) => {
+  if (chrome.scripting?.executeScript) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js'],
+    });
+    return;
+  }
+
+  if (browserApi?.tabs?.executeScript) {
+    await browserApi.tabs.executeScript(tabId, { file: 'content.js' });
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    if (!chrome.tabs.executeScript) {
+      reject(new Error('Script injection not supported.'));
+      return;
+    }
+
+    chrome.tabs.executeScript(tabId, { file: 'content.js' }, () => {
+      const lastError = chrome.runtime.lastError;
+      if (lastError) {
+        reject(new Error(lastError.message));
+      } else {
+        resolve();
+      }
+    });
+  });
+};
+
+const sendMessageToTab = async (tabId: number, message: any) => {
+  if (browserApi?.tabs?.sendMessage) {
+    return browserApi.tabs.sendMessage(tabId, message);
+  }
+
+  return new Promise<any>((resolve, reject) => {
+    chrome.tabs.sendMessage(tabId, message, (response) => {
+      const lastError = chrome.runtime.lastError;
+      if (lastError) {
+        reject(new Error(lastError.message));
+      } else {
+        resolve(response);
+      }
+    });
+  });
+};
+
+const sendRuntimeMessage = async (message: any) => {
+  if (browserApi?.runtime?.sendMessage) {
+    return browserApi.runtime.sendMessage(message);
+  }
+
+  return new Promise<any>((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      const lastError = chrome.runtime.lastError;
+      if (lastError) {
+        reject(new Error(lastError.message));
+      } else {
+        resolve(response);
+      }
+    });
+  });
+};
+
 // Available Gemini models for graph generation
 const AVAILABLE_MODELS: string[] = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
 
@@ -87,16 +192,35 @@ Specific facts, examples, or sub-concepts that substantiate each Pillar.
 ## CONSTRAINTS:
 - Articles may be long; focus only on the most significant structural concepts.
 - No conversational text. No markdown. Just the JSON object.
+`;
 
-Article content:
-`
-async function generateGraph(articleText: string, modelType: string | undefined, apiKey: string): Promise<GraphData> {
+type DepthOption = 'minimal' | 'moderate' | 'extensive';
+
+const getDepthInstruction = (depth?: DepthOption) => {
+  switch (depth) {
+    case 'minimal':
+      return `# DEPTH: MINIMAL\n- Total nodes (including root): 4\n- Use exactly 3 Pillars and 0 Details\n`;
+    case 'extensive':
+      return `# DEPTH: EXTENSIVE\n- Total nodes (including root): 14-26\n- Use 4-6 Pillars and 2-4 Details per Pillar\n`;
+    case 'moderate':
+    default:
+      return `# DEPTH: MODERATE\n- Total nodes (including root): 5-13\n- Use 3-5 Pillars and 1-3 Details per Pillar\n`;
+  }
+};
+
+async function generateGraph(
+  articleText: string,
+  modelType: string | undefined,
+  apiKey: string,
+  depth?: DepthOption,
+): Promise<GraphData> {
   if (!apiKey) {
     throw new Error('Gemini API key not configured. Please add your key in the Nodus side panel.');
   }
 
   const generationStarted = Date.now();
-  const fullPrompt = GEMINI_PROMPT + articleText.substring(0, 100000);
+  const depthInstruction = getDepthInstruction(depth);
+  const fullPrompt = `${GEMINI_PROMPT}\n${depthInstruction}\nArticle content:\n\`${articleText.substring(0, 100000)}`;
 
   // Use provided modelType or default to first model
   const selectedModel = modelType && AVAILABLE_MODELS.includes(modelType) 
@@ -162,8 +286,8 @@ async function generateGraph(articleText: string, modelType: string | undefined,
 }
 
 async function getStoredApiKey(): Promise<string> {
-  const result = await chrome.storage.local.get(GEMINI_API_KEY_STORAGE_KEY);
-  return result[GEMINI_API_KEY_STORAGE_KEY] || '';
+  const storedKey = await getStorageValue(GEMINI_API_KEY_STORAGE_KEY);
+  return storedKey || '';
 }
 
 async function validateGeminiApiKey(apiKey: string): Promise<boolean> {
@@ -182,7 +306,7 @@ async function getArticleText(tabId: number): Promise<string> {
   const started = Date.now();
   try {
     try {
-      const extractResponse = await chrome.tabs.sendMessage(tabId, {
+      const extractResponse = await sendMessageToTab(tabId, {
         type: 'GET_EXTRACTED_TEXT',
       });
       
@@ -198,14 +322,11 @@ async function getArticleText(tabId: number): Promise<string> {
           e.message?.includes('Could not establish connection')) {
         console.log('Content script not ready, injecting dynamically...');
         
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ['content.js'],
-        });
+        await executeContentScript(tabId);
         
         await new Promise(resolve => setTimeout(resolve, 200));
         
-        const extractResponse = await chrome.tabs.sendMessage(tabId, {
+        const extractResponse = await sendMessageToTab(tabId, {
           type: 'GET_EXTRACTED_TEXT',
         });
         
@@ -253,18 +374,19 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
             throw new Error('Article text too short or empty. Please ensure you are on a valid article page.');
           }
 
-          chrome.runtime.sendMessage({
+          void sendRuntimeMessage({
             type: MSG_EXTRACTED,
             payload: { text: articleText },
           }).catch(() => {});
 
           // Extract modelType from message payload
           const modelType = message.payload?.modelType;
-          const graphData = await generateGraph(articleText, modelType, apiKey);
+          const depth = message.payload?.depth as DepthOption | undefined;
+          const graphData = await generateGraph(articleText, modelType, apiKey, depth);
           const url = tabs[0].url || '';
-          await chrome.storage.local.set({ [url]: graphData });
+          await setStorageValue(url, graphData);
 
-          chrome.runtime.sendMessage({
+          void sendRuntimeMessage({
             type: MSG_GRAPH_DATA,
             payload: { graphData, url },
           }).catch(() => {});
@@ -272,7 +394,7 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
           console.log(`[timing] pipeline total: ${Date.now() - pipelineStart}ms`);
         } catch (error: any) {
           console.error('Error processing article:', error);
-          chrome.runtime.sendMessage({
+          void sendRuntimeMessage({
             type: MSG_ERROR,
             payload: { error: error.message || 'Failed to process article' },
           }).catch(() => {});
@@ -308,14 +430,15 @@ chrome.action.onClicked.addListener((tab) => {
   }
 });
 
+
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  const tab = await chrome.tabs.get(activeInfo.tabId);
+  const tab = await getTabById(activeInfo.tabId);
   if (tab.url) {
-    const result = await chrome.storage.local.get(tab.url);
-    if (result[tab.url]) {
-      chrome.runtime.sendMessage({
+    const storedGraph = await getStorageValue(tab.url);
+    if (storedGraph) {
+      void sendRuntimeMessage({
         type: MSG_GRAPH_DATA,
-        payload: { graphData: result[tab.url], url: tab.url },
+        payload: { graphData: storedGraph, url: tab.url },
       }).catch(() => {});
     }
   }

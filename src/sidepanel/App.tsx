@@ -7,6 +7,7 @@ import {
 	RefreshCw,
 	ChevronDown,
 	Settings,
+	Paintbrush,
 	Check,
 	HelpCircle,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
 type ModelOption = "gemini-2.5-flash-lite" | "gemini-2.5-flash";
 type ThemeType = "whiteout" | "classic" | "greyscale";
 type PanelPosition = "right" | "left" | "bottom";
+type DepthOption = "minimal" | "moderate" | "extensive";
 
 const MODEL_OPTIONS: { value: ModelOption; label: string; description: string }[] = [
 	{ value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", description: "Fast" },
@@ -34,6 +36,12 @@ const THEME_OPTIONS: { value: ThemeType; label: string }[] = [
 	{ value: "classic", label: "Classic" },
 	{ value: "whiteout", label: "Whiteout" },
 	{ value: "greyscale", label: "Greyscale" },
+];
+
+const DEPTH_OPTIONS: { value: DepthOption; label: string }[] = [
+	{ value: "minimal", label: "Minimal" },
+	{ value: "moderate", label: "Moderate" },
+	{ value: "extensive", label: "Extensive" },
 ];
 
 const GEMINI_API_KEY_HELP_URL = "https://aistudio.google.com/app/apikey";
@@ -55,7 +63,11 @@ export function App() {
 	const [theme, setTheme] = useState<ThemeType>("classic");
 	const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
 	const themeDropdownRef = useRef<HTMLDivElement>(null);
+	const [settingsDropdownOpen, setSettingsDropdownOpen] = useState(false);
+	const settingsDropdownRef = useRef<HTMLDivElement>(null);
 	const [panelPosition, setPanelPosition] = useState<PanelPosition>("right");
+	const isDetailOpen = Boolean(selectedNode || selectedLink);
+	const [depth, setDepth] = useState<DepthOption>("moderate");
 	const [apiKey, setApiKey] = useState("");
 	const [apiKeyStatus, setApiKeyStatus] = useState<
 		"idle" | "checking" | "valid" | "invalid"
@@ -64,7 +76,7 @@ export function App() {
 
 	useEffect(() => {
 		chrome.storage.local.get("geminiApiKey", (result) => {
-			const storedKey = result.geminiApiKey as string | undefined;
+			const storedKey = result?.geminiApiKey as string | undefined;
 			if (storedKey) {
 				setApiKey(storedKey);
 				setApiKeyStatus("valid");
@@ -163,15 +175,49 @@ export function App() {
 			) {
 				setThemeDropdownOpen(false);
 			}
+			if (
+				settingsDropdownRef.current &&
+				!settingsDropdownRef.current.contains(event.target as Node)
+			) {
+				setSettingsDropdownOpen(false);
+			}
 		};
 
-		if (dropdownOpen || themeDropdownOpen) {
+		if (dropdownOpen || themeDropdownOpen || settingsDropdownOpen) {
 			document.addEventListener("mousedown", handleClickOutside);
 			return () => document.removeEventListener("mousedown", handleClickOutside);
 		}
-	}, [dropdownOpen, themeDropdownOpen]);
+	}, [dropdownOpen, themeDropdownOpen, settingsDropdownOpen]);
 
-	const handleGenerate = () => {
+	useEffect(() => {
+		const browserApi = (globalThis as any).browser;
+		if (!browserApi?.runtime?.getBrowserInfo) return;
+
+		const baseWidth = 420;
+		const expandedWidth = 760;
+		const width = isDetailOpen ? expandedWidth : baseWidth;
+
+		document.documentElement.style.width = `${width}px`;
+		document.body.style.width = `${width}px`;
+	}, [isDetailOpen]);
+
+	useEffect(() => {
+		const browserApi = (globalThis as any).browser;
+		if (!browserApi?.runtime?.getBrowserInfo || !isDetailOpen) return;
+
+		const handleEscape = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				event.preventDefault();
+				event.stopPropagation();
+				handleCloseDetail();
+			}
+		};
+
+		window.addEventListener("keydown", handleEscape, true);
+		return () => window.removeEventListener("keydown", handleEscape, true);
+	}, [isDetailOpen]);
+
+	const handleGenerate = (options?: { model?: ModelOption; depth?: DepthOption }) => {
 		if (apiKeyStatus !== "valid") {
 			setApiKeyTouched(true);
 			return;
@@ -182,9 +228,12 @@ export function App() {
 		setSelectedLink(null);
 		setDropdownOpen(false);
 
+		const modelType = options?.model ?? selectedModel;
+		const depthOption = options?.depth ?? depth;
+
 		chrome.runtime.sendMessage({
 			type: MSG_EXTRACT,
-			payload: { modelType: selectedModel },
+			payload: { modelType, depth: depthOption },
 		});
 	};
 
@@ -212,7 +261,13 @@ export function App() {
 
 	const handlePanelPositionSelect = (position: PanelPosition) => {
 		setPanelPosition(position);
-		setThemeDropdownOpen(false);
+		setSettingsDropdownOpen(false);
+	};
+
+	const handleDepthSelect = (selectedDepth: DepthOption) => {
+		setDepth(selectedDepth);
+		setSettingsDropdownOpen(false);
+		handleGenerate({ depth: selectedDepth });
 	};
 
 	const handleNodeClick = (node: GraphNode | null) => {
@@ -335,7 +390,7 @@ export function App() {
 				<div className="text-center max-w-md">
 					<div className="text-red-400 mb-4 text-sm font-mono">{error}</div>
 					<button
-						onClick={handleGenerate}
+						onClick={() => handleGenerate()}
 						className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition-colors font-sans">
 						Try Again
 					</button>
@@ -353,16 +408,16 @@ export function App() {
 				</header>
 
 				{/* Welcome Content */}
-				<div className="flex-1 flex items-center justify-center p-6">
-					<div className="text-center max-w-md">
+				<div className="flex-1 flex items-center justify-center px-6 py-10">
+					<div className="w-full max-w-sm">
 						<NodusLogo
 							className="w-12 h-12 text-zinc-400 mx-auto mb-4"
 							isAnimating={false}
 						/>
-						<h2 className="text-xl font-semibold text-white mb-2 font-sans">
+						<h2 className="text-xl font-semibold text-white mb-2 font-sans text-center">
 							Welcome to Nodus
 						</h2>
-						<p className="text-zinc-400 text-sm mb-6 font-sans">
+						<p className="text-zinc-400 text-sm mb-6 font-sans text-center">
 							Transform any article into an interactive knowledge graph. Click the
 							generate graph button below to visualize the concepts.
 						</p>
@@ -404,39 +459,43 @@ export function App() {
 						</div>
 
 						{/* Split Glass Button */}
-						<div className="relative inline-flex" ref={dropdownRef}>
-							<button
-								onClick={handleGenerate}
-								className="px-6 py-3 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-l-lg transition-colors font-sans flex items-center gap-2">
-								Generate Graph
-							</button>
-							<button
-								onClick={() => setDropdownOpen(!dropdownOpen)}
-								className="px-3 py-3 bg-zinc-900/40 backdrop-blur-xl border border-white/10 border-l-0 hover:bg-zinc-900/60 text-white rounded-r-lg transition-colors"
-								aria-label="Select model">
-								<ChevronDown
-									className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
-								/>
-							</button>
+						<div className="flex justify-center">
+							<div className="relative inline-flex" ref={dropdownRef}>
+								<button
+									onClick={() => handleGenerate()}
+									className="px-5 py-2.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-l-lg transition-colors font-sans flex items-center gap-2 text-sm">
+									Generate Graph
+								</button>
+								<button
+									onClick={() => setDropdownOpen(!dropdownOpen)}
+									className="px-2.5 py-2.5 bg-zinc-900/40 backdrop-blur-xl border border-white/10 border-l-0 hover:bg-zinc-900/60 text-white rounded-r-lg transition-colors"
+									aria-label="Select model">
+									<ChevronDown
+										className={`w-4 h-4 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+									/>
+								</button>
 
-							{/* Dropdown Menu */}
-							{dropdownOpen && (
-								<div className="absolute top-full right-0 mt-2 w-full bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden z-[100]">
-									{MODEL_OPTIONS.map((option) => (
-										<button
-											key={option.value}
-											onClick={() => handleModelSelect(option.value)}
-											className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
-												selectedModel === option.value ? "bg-zinc-900/60" : ""
-											}`}>
-											<div className="text-white text-sm font-medium">{option.label}</div>
-											<div className="text-zinc-400 text-xs mt-0.5">
-												{option.description}
-											</div>
-										</button>
-									))}
-								</div>
-							)}
+								{/* Dropdown Menu */}
+								{dropdownOpen && (
+									<div className="absolute top-full right-0 mt-2 w-44 bg-zinc-900/80 backdrop-blur-xl border border-white/10 rounded-lg overflow-hidden z-[100]">
+										{MODEL_OPTIONS.map((option) => (
+											<button
+												key={option.value}
+												onClick={() => handleModelSelect(option.value)}
+												className={`w-full px-3 py-2.5 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
+													selectedModel === option.value ? "bg-zinc-900/60" : ""
+												}`}>
+												<div className="text-white text-xs font-medium">
+													{option.label}
+												</div>
+												<div className="text-zinc-400 text-[11px] mt-0.5">
+													{option.description}
+												</div>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 						</div>
 					</div>
 				</div>
@@ -456,44 +515,57 @@ export function App() {
 					<div className="relative" ref={themeDropdownRef}>
 						<button
 							onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
-							className="px-3 py-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors text-sm font-sans flex items-center gap-2"
+							className="px-2.5 py-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors flex items-center gap-1.5"
 							aria-label="Select theme">
-							<Settings className="w-4 h-4" />
+							<Paintbrush className="w-4 h-4" />
 							<ChevronDown
 								className={`w-3 h-3 transition-transform ${themeDropdownOpen ? "rotate-180" : ""}`}
 							/>
 						</button>
 
 						{themeDropdownOpen && (
-							<div className="absolute top-full right-0 mt-2 w-60 bg-zinc-900/90 backdrop-blur-3xl border border-white/10 rounded-lg overflow-hidden z-[100]">
+							<div className="absolute top-full left-0 mt-2 w-32 bg-zinc-900/90 backdrop-blur-3xl border border-white/10 rounded-lg overflow-hidden z-[100]">
+								<div className="flex flex-col">
+									{THEME_OPTIONS.map((option) => (
+										<button
+											key={option.value}
+											onClick={() => handleThemeSelect(option.value)}
+											className={`w-full px-3 py-2 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
+												theme === option.value ? "bg-zinc-900/60" : ""
+											}`}>
+											<div className="text-white text-xs font-medium">{option.label}</div>
+										</button>
+									))}
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* Settings Dropdown */}
+					<div className="relative" ref={settingsDropdownRef}>
+						<button
+							onClick={() => setSettingsDropdownOpen(!settingsDropdownOpen)}
+							className="px-3 py-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors text-sm font-sans flex items-center gap-2"
+							aria-label="Settings">
+							<Settings className="w-4 h-4" />
+							<ChevronDown
+								className={`w-3 h-3 transition-transform ${settingsDropdownOpen ? "rotate-180" : ""}`}
+							/>
+						</button>
+
+						{settingsDropdownOpen && (
+							<div className="absolute top-full right-0 mt-2 w-44 bg-zinc-900/90 backdrop-blur-3xl border border-white/10 rounded-lg overflow-hidden z-[100]">
 								<div className="grid grid-cols-2">
 									<div className="flex flex-col">
-										<div className="px-4 py-2 text-[11px] uppercase tracking-wide text-zinc-400 border-b border-white/5">
-											Theme
-										</div>
-										{THEME_OPTIONS.map((option) => (
-											<button
-												key={option.value}
-												onClick={() => handleThemeSelect(option.value)}
-												className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
-													theme === option.value ? "bg-zinc-900/60" : ""
-												}`}>
-												<div className="text-white text-sm font-medium">
-													{option.label}
-												</div>
-											</button>
-										))}
-									</div>
-									<div className="flex flex-col border-l border-white/5">
-										<div className="px-4 py-2 text-[11px] uppercase tracking-wide text-zinc-400 border-b border-white/5">
+										<div className="px-3 py-2 text-[10px] uppercase tracking-wide text-zinc-400 border-b border-white/5">
 											Info
 										</div>
 										<button
 											onClick={() => handlePanelPositionSelect("right")}
-											className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 ${
+											className={`w-full px-3 py-2 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 ${
 												panelPosition === "right" ? "bg-zinc-900/60" : ""
 											}`}>
-											<div className="text-white text-sm font-medium flex items-center gap-2">
+											<div className="text-white text-xs font-medium flex items-center gap-2">
 												<label className="flex items-center gap-2 cursor-pointer">
 													<input
 														type="radio"
@@ -510,10 +582,10 @@ export function App() {
 										</button>
 										<button
 											onClick={() => handlePanelPositionSelect("left")}
-											className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 ${
+											className={`w-full px-3 py-2 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 ${
 												panelPosition === "left" ? "bg-zinc-900/60" : ""
 											}`}>
-											<div className="text-white text-sm font-medium flex items-center gap-2">
+											<div className="text-white text-xs font-medium flex items-center gap-2">
 												<label className="flex items-center gap-2 cursor-pointer">
 													<input
 														type="radio"
@@ -530,10 +602,10 @@ export function App() {
 										</button>
 										<button
 											onClick={() => handlePanelPositionSelect("bottom")}
-											className={`w-full px-4 py-3 text-left hover:bg-zinc-900/60 transition-colors ${
+											className={`w-full px-3 py-2 text-left hover:bg-zinc-900/60 transition-colors ${
 												panelPosition === "bottom" ? "bg-zinc-900/60" : ""
 											}`}>
-											<div className="text-white text-sm font-medium flex items-center gap-2">
+											<div className="text-white text-xs font-medium flex items-center gap-2">
 												<label className="flex items-center gap-2 cursor-pointer">
 													<input
 														type="radio"
@@ -549,6 +621,23 @@ export function App() {
 											</div>
 										</button>
 									</div>
+									<div className="flex flex-col border-l border-white/5">
+										<div className="px-3 py-2 text-[10px] uppercase tracking-wide text-zinc-400 border-b border-white/5">
+											Depth
+										</div>
+										{DEPTH_OPTIONS.map((option) => (
+											<button
+												key={option.value}
+												onClick={() => handleDepthSelect(option.value)}
+												className={`w-full px-3 py-2 text-left hover:bg-zinc-900/60 transition-colors border-b border-white/5 last:border-b-0 ${
+													depth === option.value ? "bg-zinc-900/60" : ""
+												}`}>
+												<div className="text-white text-xs font-medium">
+													{option.label}
+												</div>
+											</button>
+										))}
+									</div>
 								</div>
 							</div>
 						)}
@@ -561,7 +650,7 @@ export function App() {
 						<ArrowLeft className="w-4 h-4" />
 					</button>
 					<button
-						onClick={handleGenerate}
+						onClick={() => handleGenerate()}
 						className="p-2 bg-zinc-900/40 backdrop-blur-xl border border-white/10 hover:bg-zinc-900/60 text-white rounded-lg transition-colors"
 						aria-label="Regenerate graph">
 						<RefreshCw className="w-4 h-4" />
