@@ -13,6 +13,8 @@ structure of ideas, section summaries, and revisit key points later. Useful for
 students, researchers, writers, and anyone who reads long-form content and wants a faster,
 clearer way to understand it.
 
+See photos [here](public/README.md)
+
 ## Usage
 
 1. Navigate to any article or blog post
