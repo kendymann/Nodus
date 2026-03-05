@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Nodus",
   "short_name": "Nodus: AI Article Concept Mapper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Transform dense articles into interactive knowledge graphs",
   "permissions": [
     "storage",
