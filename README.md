@@ -2,7 +2,9 @@
 
 ## Install
 
-Install Nodus from the Chrome Web Store or Firefox Add-ons and pin it to your toolbar for
+Install Nodus from the [Chrome Web Store](https://chromewebstore.google.com/detail/nodus/jogpchpiikmajnagkdddcoidicpkonha) or [Firefox Add-ons](https://addons.mozilla.org/en-CA/firefox/addon/nodus/)  
+  
+Pin it to your toolbar for
 quick access. After installation, open any article and click the Nodus icon to launch the
 UI (Chrome opens the side panel, Firefox opens a popup).
 
