@@ -1,5 +1,7 @@
 # Nodus | AI Article Concept Mapper
 
+![til](public/Nodus.gif)
+
 ## Install
 
 Install Nodus from the [Chrome Web Store](https://chromewebstore.google.com/detail/nodus/jogpchpiikmajnagkdddcoidicpkonha) or [Firefox Add-ons](https://addons.mozilla.org/en-CA/firefox/addon/nodus/)  
